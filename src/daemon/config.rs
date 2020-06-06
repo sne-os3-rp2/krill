@@ -93,6 +93,10 @@ impl ConfigDefaults {
     fn post_limit_rfc6492() -> u64 {
         1024 * 1024 // 1MB (for ref. the NIC br cert is about 200kB)
     }
+
+    fn ipfs_path() -> String {
+        String::from("/Users/oluwadadepoaderemi/.ipfs_rpki")
+    }
 }
 
 //------------ Config --------------------------------------------------------
@@ -166,6 +170,12 @@ pub struct Config {
     #[serde(default = "ConfigDefaults::post_limit_rfc6492")]
     pub post_limit_rfc6492: u64,
     pub rfc6492_log_dir: Option<PathBuf>,
+
+    // The public key this repository uses to publish ipfs content to ipns
+    pub ipns_pubkey: Option<String>,
+
+    #[serde(default = "ConfigDefaults::ipfs_path")]
+    pub ipfs_path: String
 }
 
 /// # Accessors
@@ -203,6 +213,17 @@ impl Config {
         }
     }
 
+    pub fn ipns_pubkey(&self) -> String {
+        match &self.ipns_pubkey {
+            None => String::from(""),
+            Some(pub_key) => pub_key.to_string()
+        }
+    }
+
+    pub fn ipfs_path(&self) -> String {
+        String::from(&self.ipfs_path)
+    }
+
     pub fn ta_cert_uri(&self) -> uri::Https {
         uri::Https::from_string(format!("{}ta/ta.cer", &self.service_uri)).unwrap()
     }
@@ -237,6 +258,8 @@ impl Config {
         let rsync_base = ConfigDefaults::rsync_base();
         let service_uri = ConfigDefaults::service_uri();
         let rrdp_service_uri = Some("https://localhost:3000/test-rrdp/".to_string());
+        let ipns_pubkey = None;
+        let ipfs_path = String::from("");
         let log_level = LevelFilter::Trace;
         let log_type = LogType::Stderr;
         let mut log_file = data_dir.clone();
@@ -281,6 +304,8 @@ impl Config {
             rfc8181_log_dir,
             post_limit_rfc6492,
             rfc6492_log_dir,
+            ipns_pubkey,
+            ipfs_path
         }
     }
 

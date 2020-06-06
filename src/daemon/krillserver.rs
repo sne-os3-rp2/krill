@@ -120,11 +120,15 @@ impl KrillServer {
                     work_dir,
                     config.rfc8181_log_dir.as_ref(),
                     signer.clone(),
+                    config.ipns_pubkey(),
+                    PathBuf::from(config.ipfs_path())
                 )?)
             } else {
                 PubServer::remove_if_empty(
                     &base_uri,
                     rrdp_base_uri.clone(),
+                    config.ipns_pubkey(),
+                    PathBuf::from(config.ipfs_path()),
                     work_dir,
                     config.rfc8181_log_dir.as_ref(),
                     signer.clone(),

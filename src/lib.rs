@@ -35,3 +35,4 @@ pub mod pubd;
 pub mod publish;
 pub mod test;
 pub mod upgrades;
+pub mod ipfs;

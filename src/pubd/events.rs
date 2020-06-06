@@ -27,17 +27,22 @@ pub struct IniDet {
     id_cert: IdCert,
     session: RrdpSession,
     rrdp_base_uri: uri::Https,
+    ipns_pubkey: String,
+    ipfs_path: PathBuf,
     rsync_jail: uri::Rsync,
     repo_base_dir: PathBuf,
 }
 
 impl IniDet {
-    pub fn unpack(self) -> (IdCert, RrdpSession, uri::Https, uri::Rsync, PathBuf) {
+    // TODO, double PathBuf fix
+    pub fn unpack(self) -> (IdCert, RrdpSession, uri::Https, uri::Rsync, String, PathBuf, PathBuf) {
         (
             self.id_cert,
             self.session,
             self.rrdp_base_uri,
             self.rsync_jail,
+            self.ipns_pubkey,
+            self.ipfs_path,
             self.repo_base_dir,
         )
     }
@@ -48,6 +53,8 @@ impl IniDet {
         handle: &Handle,
         rsync_jail: uri::Rsync,
         rrdp_base_uri: uri::Https,
+        ipns_pubkey: String,
+        ipfs_path: PathBuf,
         work_dir: &PathBuf,
         signer: &mut S,
     ) -> KrillResult<Ini> {
@@ -72,6 +79,8 @@ impl IniDet {
                 id_cert,
                 session,
                 rrdp_base_uri,
+                ipns_pubkey,
+                ipfs_path,
                 rsync_jail,
                 repo_base_dir,
             },

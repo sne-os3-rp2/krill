@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::str::{from_utf8_unchecked, FromStr};
 use std::time::SystemTime;
 
+
 use rpki::crypto::KeyIdentifier;
 use rpki::uri;
 use rpki::x509::Time;
@@ -26,6 +27,9 @@ use crate::constants::{
 };
 use crate::pubd::publishers::Publisher;
 use crate::pubd::{Cmd, CmdDet, Evt, EvtDet, Ini, RrdpUpdate};
+
+use crate::ipfs::ipfs::{IpfsPath, IpnsPubkey};
+use crate::ipfs::ipfs;
 
 //------------ RsyncdStore ---------------------------------------------------
 
@@ -99,6 +103,38 @@ impl RsyncdStore {
         Ok(())
     }
 }
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IpfsStore {
+    ipfs_path: PathBuf,
+    ipns_pubkey: IpnsPubkey
+}
+
+impl IpfsStore {
+    pub fn new(repo_dir: String, ipns_pubkey: IpnsPubkey) -> Self {
+        let ipfs_path = PathBuf::from(repo_dir);
+        IpfsStore {
+            ipfs_path,
+            ipns_pubkey
+        }
+    }
+    pub fn write(&self, rsync_dir: &PathBuf) -> KrillResult<()> {
+        // TODO for now just add rsync directory to IPFS
+        // Probably might be a more efficient, IPFS specific way to do this
+        println!("doing that ipfs thang from {:?} ", rsync_dir);
+
+        let ipfs_path = IpfsPath::from_path_buff(PathBuf::from(&self.ipfs_path));
+
+        let cid = ipfs::add(&ipfs_path, rsync_dir);
+
+        let result = ipfs::publish(&ipfs_path, &self.ipns_pubkey, cid);
+        println!("{:?}", result.unwrap());
+
+        Ok(())
+    }
+}
+
 
 /// The RRDP server used by a Repository instance
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -409,6 +445,7 @@ pub struct Repository {
 
     rrdp: RrdpServer,
     rsync: RsyncdStore,
+    ipfs: IpfsStore,
 
     #[serde(default = "RepoStats::default")]
     stats: RepoStats,
@@ -431,7 +468,7 @@ impl Aggregate for Repository {
 
     fn init(event: Self::InitEvent) -> Result<Self, Self::Error> {
         let (handle, _version, details) = event.unwrap();
-        let (id_cert, session, rrdp_base_uri, rsync_jail, repo_base_dir) = details.unpack();
+        let (id_cert, session, rrdp_base_uri, rsync_jail, ipns_pubkey, ipfs_path, repo_base_dir) = details.unpack();
 
         let key_id = id_cert.subject_public_key_info().key_identifier();
 
@@ -439,7 +476,12 @@ impl Aggregate for Repository {
 
         let rrdp = RrdpServer::new(rrdp_base_uri, &repo_base_dir, session);
         let rsync = RsyncdStore::new(rsync_jail, &repo_base_dir);
+        let ipns_pubkey = IpnsPubkey { key: String::from(ipns_pubkey) };
+        // TODO consider changing repo_dir from string to PathBuf
+        let ipfs = IpfsStore::new(ipfs_path.into_os_string().into_string().unwrap(),
+                                  ipns_pubkey);
 
+        info!("RPKI: Init...");
         Ok(Repository {
             handle,
             version: 1,
@@ -448,6 +490,7 @@ impl Aggregate for Repository {
             publishers: HashMap::new(),
             rrdp,
             rsync,
+            ipfs,
             stats,
         })
     }
@@ -627,6 +670,7 @@ impl Repository {
         // re-sync RRDP snapshot to rsync files
         let snapshot = self.rrdp.snapshot();
         self.rsync.write(snapshot)?;
+        self.ipfs.write(&self.rsync.rsync_dir)?;
 
         Ok(())
     }

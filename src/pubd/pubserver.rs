@@ -46,6 +46,8 @@ impl PubServer {
     pub fn remove_if_empty(
         rsync_base: &uri::Rsync,
         rrdp_base_uri: uri::Https,         // for the RRDP files
+        ipns_path: String,
+        ipfs_path: PathBuf,
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
@@ -54,7 +56,15 @@ impl PubServer {
         pub_server_dir.push(PUBSERVER_DIR);
         if pub_server_dir.exists() {
             let server =
-                PubServer::build(rsync_base, rrdp_base_uri, work_dir, rfc8181_log_dir, signer)?;
+                PubServer::build(
+                    rsync_base,
+                    rrdp_base_uri,
+                    work_dir,
+                    rfc8181_log_dir,
+                    signer,
+                    ipns_path,
+                    ipfs_path)?;
+
             if server.publishers()?.is_empty() {
                 let _result = fs::remove_dir_all(pub_server_dir);
                 Ok(None)
@@ -72,6 +82,8 @@ impl PubServer {
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
+        ipns_pubkey: String,
+        ipfs_path: PathBuf
     ) -> Result<Self, Error> {
         let default = Self::repository_handle();
 
@@ -88,6 +100,8 @@ impl PubServer {
                 &default,
                 rsync_base.clone(),
                 rrdp_base_uri,
+                ipns_pubkey,
+                ipfs_path,
                 work_dir,
                 signer.deref_mut(),
             )?;
@@ -319,6 +333,8 @@ mod tests {
             work_dir,
             None,
             signer,
+            String::from(""),
+            PathBuf::from(String::from(""))
         )
         .unwrap()
     }
