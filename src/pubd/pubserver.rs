@@ -20,6 +20,7 @@ use crate::commons::util::softsigner::OpenSslSigner;
 use crate::commons::KrillResult;
 use crate::constants::*;
 use crate::pubd::{self, CmdDet, RepoStats, Repository};
+use crate::ipfs::ipfs::start_ipfs_daemon;
 
 //------------ PubServer -----------------------------------------------------
 
@@ -86,13 +87,14 @@ impl PubServer {
         ipfs_path: PathBuf
     ) -> Result<Self, Error> {
         let default = Self::repository_handle();
-
+        let _ipfs_path = ipfs_path.clone();
         let store = Arc::new(DiskAggregateStore::<Repository>::new(
             work_dir,
             PUBSERVER_DIR,
         )?);
 
         if !store.has(&default) {
+
             info!("Creating default repository");
 
             let mut signer = signer.write().unwrap();
@@ -106,6 +108,10 @@ impl PubServer {
                 signer.deref_mut(),
             )?;
             store.add(ini)?;
+        }
+
+        if _ipfs_path.as_path().exists() {
+            start_ipfs_daemon(&_ipfs_path);
         }
 
         Ok(PubServer {
