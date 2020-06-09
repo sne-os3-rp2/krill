@@ -20,6 +20,7 @@ use crate::commons::api::Token;
 use crate::commons::util::ext_serde;
 use crate::constants::*;
 use crate::daemon::http::tls_keys;
+use crate::ipfs::ipfs::{IpnsPubkey, IpfsPath};
 
 //------------ ConfigDefaults ------------------------------------------------
 
@@ -94,8 +95,8 @@ impl ConfigDefaults {
         1024 * 1024 // 1MB (for ref. the NIC br cert is about 200kB)
     }
 
-    fn ipfs_path() -> String {
-        String::from("/Users/oluwadadepoaderemi/.ipfs_rpki")
+    fn ipfs_path() -> IpfsPath {
+        IpfsPath(PathBuf::from("~/.ipfs"))
     }
 }
 
@@ -172,10 +173,10 @@ pub struct Config {
     pub rfc6492_log_dir: Option<PathBuf>,
 
     // The public key this repository uses to publish ipfs content to ipns
-    pub ipns_pubkey: Option<String>,
+    pub ipns_pubkey: Option<IpnsPubkey>,
 
     #[serde(default = "ConfigDefaults::ipfs_path")]
-    pub ipfs_path: String
+    pub ipfs_path: IpfsPath
 }
 
 /// # Accessors
@@ -213,15 +214,15 @@ impl Config {
         }
     }
 
-    pub fn ipns_pubkey(&self) -> String {
+    pub fn ipns_pubkey(&self) -> IpnsPubkey {
         match &self.ipns_pubkey {
-            None => String::from(""),
-            Some(pub_key) => pub_key.to_string()
+            None => IpnsPubkey(String::from("")),
+            Some(pub_key) => pub_key.clone()
         }
     }
 
-    pub fn ipfs_path(&self) -> String {
-        String::from(&self.ipfs_path)
+    pub fn ipfs_path(&self) -> IpfsPath {
+        IpfsPath(self.ipfs_path.0.clone())
     }
 
     pub fn ta_cert_uri(&self) -> uri::Https {
@@ -259,7 +260,7 @@ impl Config {
         let service_uri = ConfigDefaults::service_uri();
         let rrdp_service_uri = Some("https://localhost:3000/test-rrdp/".to_string());
         let ipns_pubkey = None;
-        let ipfs_path = String::from("");
+        let ipfs_path = IpfsPath(PathBuf::from(String::from("")));
         let log_level = LevelFilter::Trace;
         let log_type = LogType::Stderr;
         let mut log_file = data_dir.clone();

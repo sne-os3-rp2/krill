@@ -107,29 +107,27 @@ impl RsyncdStore {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IpfsStore {
-    ipfs_path: PathBuf,
+    ipfs_path: IpfsPath,
     ipns_pubkey: IpnsPubkey
 }
 
 impl IpfsStore {
-    pub fn new(repo_dir: String, ipns_pubkey: IpnsPubkey) -> Self {
-        let ipfs_path = PathBuf::from(repo_dir);
+    pub fn new(ipfs_path: IpfsPath, ipns_pubkey: IpnsPubkey) -> Self {
         IpfsStore {
             ipfs_path,
             ipns_pubkey
         }
     }
     pub fn write(&self, rsync_dir: &PathBuf) -> KrillResult<()> {
-        // TODO for now just add rsync directory to IPFS
-        // Probably might be a more efficient, IPFS specific way to do this
-        println!("doing that ipfs thang from {:?} ", rsync_dir);
+        let rsync_dir = rsync_dir.join("current");
+        // TODO Probably might be a more efficient, IPFS specific way to do this
+        info!("Syncing from updated rsync directory {:?} into IPFS ", rsync_dir);
 
-        let ipfs_path = IpfsPath::from_path_buff(PathBuf::from(&self.ipfs_path));
+        let ipfs_path = &self.ipfs_path;
+        let cid = ipfs::add(ipfs_path, &rsync_dir)?;
+        let result = ipfs::publish(ipfs_path, &self.ipns_pubkey, cid)?;
 
-        let cid = ipfs::add(&ipfs_path, rsync_dir);
-
-        let result = ipfs::publish(&ipfs_path, &self.ipns_pubkey, cid);
-        println!("{:?}", result.unwrap());
+        info!("{:?}", result);
 
         Ok(())
     }
@@ -468,7 +466,7 @@ impl Aggregate for Repository {
 
     fn init(event: Self::InitEvent) -> Result<Self, Self::Error> {
         let (handle, _version, details) = event.unwrap();
-        let (id_cert, session, rrdp_base_uri, rsync_jail, ipns_pubkey, ipfs_path, repo_base_dir) = details.unpack();
+        let (id_cert, session, rrdp_base_uri, rsync_jail, repo_base_dir, ipns_pubkey, ipfs_path) = details.unpack();
 
         let key_id = id_cert.subject_public_key_info().key_identifier();
 
@@ -476,10 +474,7 @@ impl Aggregate for Repository {
 
         let rrdp = RrdpServer::new(rrdp_base_uri, &repo_base_dir, session);
         let rsync = RsyncdStore::new(rsync_jail, &repo_base_dir);
-        let ipns_pubkey = IpnsPubkey { key: String::from(ipns_pubkey) };
-        // TODO consider changing repo_dir from string to PathBuf
-        let ipfs = IpfsStore::new(ipfs_path.into_os_string().into_string().unwrap(),
-                                  ipns_pubkey);
+        let ipfs = IpfsStore::new(ipfs_path, ipns_pubkey);
 
         info!("RPKI: Init...");
         Ok(Repository {

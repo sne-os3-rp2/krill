@@ -20,7 +20,7 @@ use crate::commons::util::softsigner::OpenSslSigner;
 use crate::commons::KrillResult;
 use crate::constants::*;
 use crate::pubd::{self, CmdDet, RepoStats, Repository};
-use crate::ipfs::ipfs::start_ipfs_daemon;
+use crate::ipfs::ipfs::{IpnsPubkey, IpfsPath};
 
 //------------ PubServer -----------------------------------------------------
 
@@ -47,11 +47,11 @@ impl PubServer {
     pub fn remove_if_empty(
         rsync_base: &uri::Rsync,
         rrdp_base_uri: uri::Https,         // for the RRDP files
-        ipns_path: String,
-        ipfs_path: PathBuf,
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
+        ipns_pubkey: IpnsPubkey,
+        ipfs_path: IpfsPath,
     ) -> Result<Option<Self>, Error> {
         let mut pub_server_dir = work_dir.clone();
         pub_server_dir.push(PUBSERVER_DIR);
@@ -63,7 +63,7 @@ impl PubServer {
                     work_dir,
                     rfc8181_log_dir,
                     signer,
-                    ipns_path,
+                    ipns_pubkey,
                     ipfs_path)?;
 
             if server.publishers()?.is_empty() {
@@ -83,8 +83,8 @@ impl PubServer {
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
-        ipns_pubkey: String,
-        ipfs_path: PathBuf
+        ipns_pubkey: IpnsPubkey,
+        ipfs_path: IpfsPath
     ) -> Result<Self, Error> {
         let default = Self::repository_handle();
         let _ipfs_path = ipfs_path.clone();
@@ -102,16 +102,12 @@ impl PubServer {
                 &default,
                 rsync_base.clone(),
                 rrdp_base_uri,
-                ipns_pubkey,
-                ipfs_path,
                 work_dir,
                 signer.deref_mut(),
+                ipns_pubkey,
+                ipfs_path,
             )?;
             store.add(ini)?;
-        }
-
-        if _ipfs_path.as_path().exists() {
-            start_ipfs_daemon(&_ipfs_path);
         }
 
         Ok(PubServer {

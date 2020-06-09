@@ -4,60 +4,46 @@ use std::process::{Command, Output};
 use std::io::Error;
 use std::string::FromUtf8Error;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct IpfsPath {
-    pub path: PathBuf
-}
-
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct IpfsPath(pub PathBuf);
 
 impl IpfsPath {
-    pub fn from_path_buff(path: PathBuf) -> Self {
-        IpfsPath {path}
+    pub fn value(&self) -> &PathBuf {
+        &self.0
+    }
+
+    pub fn to_string(&self) -> String {
+        String::from(&self.0.display().to_string())
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct IpnsPubkey {
-    pub key: String
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct IpnsPubkey(pub String);
+
+impl IpnsPubkey {
+    pub fn value(&self) -> &String {
+        &self.0
+    }
 }
 
 const IPFS: &str = "ipfs";
 
-pub fn add(ipfs_path: &IpfsPath, dir: &PathBuf) -> String {
-    // TODO change to return result
-    env::set_var("IPFS_PATH", ipfs_path.path.display().to_string());
+pub fn add(ipfs_path: &IpfsPath, dir: &PathBuf) -> Result<String, Error> {
+    env::set_var("IPFS_PATH", ipfs_path.to_string());
     let output = add_dir(dir).unwrap();
-    let cid = extract_output_cid(output).unwrap();
+    let cid = extract_output_cid(output);
     env::set_var("IPFS_PATH", "");
     return cid;
 }
 
 pub fn publish(ipfs_path: &IpfsPath, public_key: &IpnsPubkey, cid: String) -> Result<Output, Error> {
-    env::set_var("IPFS_PATH", ipfs_path.path.display().to_string());
+    env::set_var("IPFS_PATH", ipfs_path.to_string());
     let result = publish_cid(public_key, &cid);
     env::set_var("IPFS_PATH", "");
     return result
 }
 
-pub fn start_ipfs_daemon(ipfs_path_buf: &PathBuf) {
-    let mut repo_lock = ipfs_path_buf.clone();
-    repo_lock.push("repo.lock");
-
-    if !repo_lock.as_path().exists() {
-        println!("Starting IPFS...");
-        env::set_var("IPFS_PATH", ipfs_path_buf.as_os_str());
-        Command::new(IPFS).arg("daemon")
-            .arg("--enable-namesys-pubsub")
-            .arg("--enable-pubsub-experiment")
-            .spawn()
-            .expect("Could not start IPFS");
-        println!("Started IPFS...");
-        env::set_var("IPFS_PATH", "");
-    };
-}
-
-
-fn extract_output_cid(output: Output) -> Result<String, Error>{
+fn extract_output_cid(output: Output) -> Result<String, Error> {
     let result:Result<String, FromUtf8Error> = String::from_utf8(output.stdout);
     result.map(move |res| {
         String::from(res.lines()
@@ -68,7 +54,6 @@ fn extract_output_cid(output: Output) -> Result<String, Error>{
     }).map_err(|_e| Error::from_raw_os_error(1))
 }
 
-
 fn add_dir(dir: &PathBuf) -> Result<Output, Error> {
     Command::new(IPFS).arg("add")
         .arg("-r")
@@ -77,7 +62,7 @@ fn add_dir(dir: &PathBuf) -> Result<Output, Error> {
 }
 
 fn publish_cid(public_key: &IpnsPubkey, cid: &String) -> Result<Output, Error> {
-    let key = format!("--key={}", public_key.key);
+    let key = format!("--key={}", public_key.value());
     let ipfs_cid = format!("/ipfs/{}", cid);
     Command::new(IPFS)
         .arg("name")
