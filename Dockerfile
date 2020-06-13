@@ -48,6 +48,54 @@ RUN chown ${RUN_USER}: /opt/entrypoint.sh
 
 EXPOSE 3000/tcp
 
+# Adding IPFS
+
+#Install IPFS
+WORKDIR /tmp/ipfs
+RUN mkdir go-ipfs
+COPY ./go-ipfs ./go-ipfs
+RUN cd ./go-ipfs && ./install.sh
+RUN apk add libc6-compat
+
+# Expose ports
+# Swarm TCP; should be exposed to the public
+EXPOSE 4001
+# Swarm UDP; should be exposed to the public
+EXPOSE 4001/udp
+# Daemon API; must not be exposed publicly but to client services under you control
+EXPOSE 5001
+# Web Gateway; can be exposed publicly with a proxy, e.g. as https://ipfs.example.org
+EXPOSE 8080
+# Swarm Websockets; must be exposed publicly when the node is listening using the websocket transport (/ipX/.../tcp/8081/ws).
+EXPOSE 8081
+
+# Create the fs-repo directory and switch to a non-privileged user.
+ENV IPFS_PATH /data/ipfs
+RUN mkdir -p $IPFS_PATH \
+  && chown ${RUN_USER}:${RUN_USER_GID} $IPFS_PATH
+
+# Create mount points for `ipfs mount` command
+RUN mkdir /ipfs /ipns \
+  && chown ${RUN_USER}:${RUN_USER_GID} /ipfs /ipns
+
+# Expose the fs-repo as a volume.
+# start_ipfs initializes an fs-repo if none is mounted.
+# Important this happens after the USER directive so permissions are correct.
+VOLUME $IPFS_PATH
+
+# The default logging level
+ENV IPFS_LOGGING ""
+
+RUN echo $ENV_SWARM_KEY > $IPFS_PATH/swarm.key
+
+RUN mkdir -p /usr/local/nexus \
+    && chown ${RUN_USER}:${RUN_USER_GID} /usr/local/nexus
+
+RUN touch /usr/local/nexus/peerid \
+   && chown ${RUN_USER}:${RUN_USER_GID} /usr/local/nexus/peerid
+
+RUN chmod 4755 /usr/local/nexus/peerid
+
 # Use Tini to ensure that krillc responds to CTRL-C when run in the
 # foreground without the Docker argument "--init" (which is actually another
 # way of activating Tini, but cannot be enabled from inside the Docker image).
