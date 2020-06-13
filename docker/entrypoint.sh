@@ -142,7 +142,7 @@ fi
 
 ipfs bootstrap add /ip4/${BOOTNODE_IP}/tcp/4001/ipfs/${PEER_ID}
 
-ipfs daemon --migrate=true &
+ipfs daemon --migrate=true --enable-namesys-pubsub --enable-pubsub-experiment &
 
 
 
