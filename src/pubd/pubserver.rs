@@ -20,7 +20,7 @@ use crate::commons::util::softsigner::OpenSslSigner;
 use crate::commons::KrillResult;
 use crate::constants::*;
 use crate::pubd::{self, CmdDet, RepoStats, Repository};
-use crate::ipfs::ipfs::{IpnsPubkey, IpfsPath};
+use crate::ipfs::ipfs::{RepoPubKey, IpfsPath, TalPubKey};
 
 //------------ PubServer -----------------------------------------------------
 
@@ -50,7 +50,8 @@ impl PubServer {
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
-        ipns_pubkey: IpnsPubkey,
+        repo_pubkey: RepoPubKey,
+        tal_pubkey: TalPubKey,
         ipfs_path: IpfsPath,
     ) -> Result<Option<Self>, Error> {
         let mut pub_server_dir = work_dir.clone();
@@ -63,7 +64,8 @@ impl PubServer {
                     work_dir,
                     rfc8181_log_dir,
                     signer,
-                    ipns_pubkey,
+                    repo_pubkey,
+                    tal_pubkey,
                     ipfs_path)?;
 
             if server.publishers()?.is_empty() {
@@ -83,7 +85,8 @@ impl PubServer {
         work_dir: &PathBuf,                // for the aggregate stores
         rfc8181_log_dir: Option<&PathBuf>, // for optional CMS exchange logging
         signer: Arc<RwLock<OpenSslSigner>>,
-        ipns_pubkey: IpnsPubkey,
+        repo_pubkey: RepoPubKey,
+        tal_pubkey: TalPubKey,
         ipfs_path: IpfsPath
     ) -> Result<Self, Error> {
         let default = Self::repository_handle();
@@ -104,7 +107,8 @@ impl PubServer {
                 rrdp_base_uri,
                 work_dir,
                 signer.deref_mut(),
-                ipns_pubkey,
+                repo_pubkey,
+                tal_pubkey,
                 ipfs_path,
             )?;
             store.add(ini)?;
@@ -223,6 +227,14 @@ impl PubServer {
 /// # Manage publishers
 ///
 impl PubServer {
+    pub fn get_tal_pubkey(&self) -> KrillResult<String> {
+        let repository = self.repository()?;
+        Ok(repository.tal_pubkey())
+    }
+    pub fn get_ipfs_path(&self) -> KrillResult<String> {
+        let repository = self.repository()?;
+        Ok(repository.ipfs_path())
+    }
     pub fn repo_info_for(&self, publisher: &PublisherHandle) -> KrillResult<RepoInfo> {
         let repository = self.repository()?;
         Ok(repository.repo_info_for(publisher))

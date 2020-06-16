@@ -20,7 +20,7 @@ use crate::commons::api::Token;
 use crate::commons::util::ext_serde;
 use crate::constants::*;
 use crate::daemon::http::tls_keys;
-use crate::ipfs::ipfs::{IpnsPubkey, IpfsPath};
+use crate::ipfs::ipfs::{RepoPubKey, IpfsPath, TalPubKey};
 
 //------------ ConfigDefaults ------------------------------------------------
 
@@ -173,7 +173,10 @@ pub struct Config {
     pub rfc6492_log_dir: Option<PathBuf>,
 
     // The public key this repository uses to publish ipfs content to ipns
-    pub ipns_pubkey: Option<IpnsPubkey>,
+    pub repo_pub_key: Option<RepoPubKey>,
+
+    // The public key this repository uses to publish trust anchor
+    pub tal_pub_key: Option<TalPubKey>,
 
     #[serde(default = "ConfigDefaults::ipfs_path")]
     pub ipfs_path: IpfsPath
@@ -214,12 +217,21 @@ impl Config {
         }
     }
 
-    pub fn ipns_pubkey(&self) -> IpnsPubkey {
-        match &self.ipns_pubkey {
-            None => IpnsPubkey(String::from("")),
-            Some(pub_key) => pub_key.clone()
+    pub fn repo_pub_key(&self) -> RepoPubKey {
+        match &self.repo_pub_key {
+            Some(pub_key) => pub_key.clone(),
+            None => RepoPubKey(String::from("")),
         }
     }
+
+    pub fn tal_pub_key(&self) -> TalPubKey {
+        match &self.tal_pub_key {
+            Some(pub_key) => pub_key.clone(),
+            None => TalPubKey(String::from("")),
+        }
+    }
+
+
 
     pub fn ipfs_path(&self) -> IpfsPath {
         IpfsPath(self.ipfs_path.0.clone())
@@ -259,7 +271,8 @@ impl Config {
         let rsync_base = ConfigDefaults::rsync_base();
         let service_uri = ConfigDefaults::service_uri();
         let rrdp_service_uri = Some("https://localhost:3000/test-rrdp/".to_string());
-        let ipns_pubkey = None;
+        let repo_pub_key = None;
+        let tal_pub_key = None;
         let ipfs_path = IpfsPath(PathBuf::from(String::from("")));
         let log_level = LevelFilter::Trace;
         let log_type = LogType::Stderr;
@@ -305,7 +318,8 @@ impl Config {
             rfc8181_log_dir,
             post_limit_rfc6492,
             rfc6492_log_dir,
-            ipns_pubkey,
+            repo_pub_key,
+            tal_pub_key,
             ipfs_path
         }
     }

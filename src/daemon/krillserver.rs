@@ -120,7 +120,8 @@ impl KrillServer {
                     work_dir,
                     config.rfc8181_log_dir.as_ref(),
                     signer.clone(),
-                    config.ipns_pubkey(),
+                    config.repo_pub_key(),
+                    config.tal_pub_key(),
                     config.ipfs_path()
                 )?)
             } else {
@@ -130,7 +131,8 @@ impl KrillServer {
                     work_dir,
                     config.rfc8181_log_dir.as_ref(),
                     signer.clone(),
-                    config.ipns_pubkey(),
+                    config.repo_pub_key(),
+                    config.tal_pub_key(),
                     config.ipfs_path(),
                 )?
             }
@@ -274,6 +276,16 @@ impl KrillServer {
         let mut path = self.work_dir.clone();
         path.push("repo/rrdp");
         path
+    }
+
+    pub fn get_tal_pubkey(&self) -> KrillResult<String> {
+        let embedded = self.get_embedded()?;
+        embedded.get_tal_pubkey()
+    }
+
+    pub fn get_ipfs_path(&self) -> KrillResult<String> {
+        let embedded = self.get_embedded()?;
+        embedded.get_ipfs_path()
     }
 }
 

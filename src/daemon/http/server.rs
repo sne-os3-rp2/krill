@@ -2,7 +2,7 @@
 //!
 use std::convert::Infallible;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -29,6 +29,8 @@ use crate::daemon::http::statics::statics;
 use crate::daemon::http::{tls, tls_keys, HttpResponse, Request, RequestPath, RoutingResult};
 use crate::daemon::krillserver::KrillServer;
 use crate::upgrades::upgrade;
+use std::io::{Write, Read};
+use crate::ipfs::ipfs::{publish_ta_cer, IpfsPath, TalPubKey};
 
 //------------ State -----------------------------------------------------
 
@@ -589,9 +591,48 @@ async fn repository_response(
 }
 
 async fn ca_add_child(req: Request, parent: ParentHandle) -> RoutingResult {
+    fn do_create_and_publish(cer_in_bytes: &[u8], ipfs_path: &IpfsPath, tal_pubkey: &TalPubKey) {
+        let mut ta_cer_file: File = File::create("/tmp/ta.cer").unwrap();
+        ta_cer_file.write_all(cer_in_bytes);
+
+        publish_ta_cer(ipfs_path, tal_pubkey);
+    }
+
     let server = req.state().clone();
     match req.json().await {
-        Ok(child_req) => render_json_res(server.read().await.ca_add_child(&parent, child_req)),
+        Ok(child_req) => {
+            let res = server.read().await.ca_add_child(&parent, child_req);
+            match server.read().await.trust_anchor_cert() {
+                Some(cert) => {
+                    if Path::new("/tmp/ta.cer").exists() {
+                        let mut file = File::open("/tmp/ta.cer").unwrap();
+                        let cert_as_vec = cert.to_captured().to_vec();
+                        let mut cert_on_file = Vec::new();
+                        file.read_to_end(&mut cert_on_file);
+
+                        if !cert_on_file.eq(&cert_as_vec) {
+                            let ipfs_path = server.read().await.get_ipfs_path().unwrap();
+                            let tal_pubkey = server.read().await.get_tal_pubkey().unwrap();
+                            do_create_and_publish(&cert.to_captured().to_vec(),
+                                                  &IpfsPath(PathBuf::from(ipfs_path)),
+                                                  &TalPubKey(tal_pubkey));
+                        }
+                    } else {
+                        let ipfs_path = server.read().await.get_ipfs_path().unwrap();
+                        let tal_pubkey = server.read().await.get_tal_pubkey().unwrap();
+                        do_create_and_publish(
+                            &cert.to_captured().to_vec(),
+                            &IpfsPath(PathBuf::from(ipfs_path)),
+                            &TalPubKey(tal_pubkey));
+                    }
+
+                },
+                None => { println!("could not read ta.cer") },
+            }
+
+
+            render_json_res(res)
+        },
         Err(e) => render_error(e),
     }
 }

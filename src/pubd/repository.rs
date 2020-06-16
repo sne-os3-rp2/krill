@@ -28,7 +28,7 @@ use crate::constants::{
 use crate::pubd::publishers::Publisher;
 use crate::pubd::{Cmd, CmdDet, Evt, EvtDet, Ini, RrdpUpdate};
 
-use crate::ipfs::ipfs::{IpfsPath, IpnsPubkey};
+use crate::ipfs::ipfs::{IpfsPath, RepoPubKey, TalPubKey};
 use crate::ipfs::ipfs;
 
 //------------ RsyncdStore ---------------------------------------------------
@@ -108,14 +108,16 @@ impl RsyncdStore {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IpfsStore {
     ipfs_path: IpfsPath,
-    ipns_pubkey: IpnsPubkey
+    repo_pubkey: RepoPubKey,
+    tal_pubkey: TalPubKey,
 }
 
 impl IpfsStore {
-    pub fn new(ipfs_path: IpfsPath, ipns_pubkey: IpnsPubkey) -> Self {
+    pub fn new(ipfs_path: IpfsPath, repo_pubkey: RepoPubKey, tal_pubkey: TalPubKey) -> Self {
         IpfsStore {
             ipfs_path,
-            ipns_pubkey
+            repo_pubkey,
+            tal_pubkey
         }
     }
     pub fn write(&self, rsync_dir: &PathBuf) -> KrillResult<()> {
@@ -125,7 +127,7 @@ impl IpfsStore {
 
         let ipfs_path = &self.ipfs_path;
         let cid = ipfs::add(ipfs_path, &rsync_dir)?;
-        let result = ipfs::publish(ipfs_path, &self.ipns_pubkey, cid)?;
+        let result = ipfs::publish(ipfs_path, &self.repo_pubkey, cid)?;
 
         info!("{:?}", result);
 
@@ -466,7 +468,7 @@ impl Aggregate for Repository {
 
     fn init(event: Self::InitEvent) -> Result<Self, Self::Error> {
         let (handle, _version, details) = event.unwrap();
-        let (id_cert, session, rrdp_base_uri, rsync_jail, repo_base_dir, ipns_pubkey, ipfs_path) = details.unpack();
+        let (id_cert, session, rrdp_base_uri, rsync_jail, repo_base_dir, repo_pubkey, tal_pubkey, ipfs_path) = details.unpack();
 
         let key_id = id_cert.subject_public_key_info().key_identifier();
 
@@ -474,7 +476,7 @@ impl Aggregate for Repository {
 
         let rrdp = RrdpServer::new(rrdp_base_uri, &repo_base_dir, session);
         let rsync = RsyncdStore::new(rsync_jail, &repo_base_dir);
-        let ipfs = IpfsStore::new(ipfs_path, ipns_pubkey);
+        let ipfs = IpfsStore::new(ipfs_path, repo_pubkey, tal_pubkey);
 
         info!("RPKI: Init...");
         Ok(Repository {
@@ -674,6 +676,14 @@ impl Repository {
 /// # Miscellaneous
 ///
 impl Repository {
+    pub fn tal_pubkey(&self) -> String {
+        self.ipfs.tal_pubkey.clone().0
+    }
+
+    pub fn ipfs_path(&self) -> String {
+        self.ipfs.ipfs_path.to_string()
+    }
+
     pub fn regenerate_stats(&mut self) {
         let mut stats = RepoStats::default();
         for (handle, details) in &self.publishers {

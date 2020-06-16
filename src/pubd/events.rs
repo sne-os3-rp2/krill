@@ -15,7 +15,7 @@ use crate::commons::KrillResult;
 use crate::constants::REPOSITORY_DIR;
 use crate::daemon::ca::Signer;
 use crate::pubd::Publisher;
-use crate::ipfs::ipfs::{IpnsPubkey, IpfsPath};
+use crate::ipfs::ipfs::{RepoPubKey, IpfsPath, TalPubKey};
 
 //------------ Ini -----------------------------------------------------------
 
@@ -30,19 +30,21 @@ pub struct IniDet {
     rrdp_base_uri: uri::Https,
     rsync_jail: uri::Rsync,
     repo_base_dir: PathBuf,
-    ipns_pubkey: IpnsPubkey,
+    repo_pubkey: RepoPubKey,
+    tal_pubkey: TalPubKey,
     ipfs_path: IpfsPath,
 }
 
 impl IniDet {
-    pub fn unpack(self) -> (IdCert, RrdpSession, uri::Https, uri::Rsync, PathBuf, IpnsPubkey, IpfsPath) {
+    pub fn unpack(self) -> (IdCert, RrdpSession, uri::Https, uri::Rsync, PathBuf, RepoPubKey, TalPubKey, IpfsPath) {
         (
             self.id_cert,
             self.session,
             self.rrdp_base_uri,
             self.rsync_jail,
             self.repo_base_dir,
-            self.ipns_pubkey,
+            self.repo_pubkey,
+            self.tal_pubkey,
             self.ipfs_path,
         )
     }
@@ -55,7 +57,8 @@ impl IniDet {
         rrdp_base_uri: uri::Https,
         work_dir: &PathBuf,
         signer: &mut S,
-        ipns_pubkey: IpnsPubkey,
+        repo_pubkey: RepoPubKey,
+        tal_pubkey: TalPubKey,
         ipfs_path: IpfsPath,
     ) -> KrillResult<Ini> {
         let key = signer
@@ -81,7 +84,8 @@ impl IniDet {
                 rrdp_base_uri,
                 rsync_jail,
                 repo_base_dir,
-                ipns_pubkey,
+                repo_pubkey,
+                tal_pubkey,
                 ipfs_path,
             },
         ))
