@@ -27,7 +27,8 @@ openssl         = { version = "^0.10", features = ["v110"] }
 pretty          = "0.5.2" # for testing
 rand            = "^0.5"
 reqwest         = { version = "0.10.4", features = ["blocking", "json"] }
-rpki            = "0.9.0"
+rpki            = {  git = "https://github.com/sne-os3-rp2/rpki-rs" }
+#rpki            = { path = "/Users/oluwadadepoaderemi/Documents/masters/rp2/rpki-rs"}
 serde           = { version = "^1.0", features = ["derive"] }
 serde_json      = "^1.0"
 syslog          = "^4.0"

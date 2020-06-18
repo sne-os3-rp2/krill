@@ -30,7 +30,7 @@ use crate::daemon::http::{tls, tls_keys, HttpResponse, Request, RequestPath, Rou
 use crate::daemon::krillserver::KrillServer;
 use crate::upgrades::upgrade;
 use std::io::{Write, Read};
-use crate::ipfs::ipfs::{publish_ta_cer, IpfsPath, TalPubKey};
+use crate::ipfs::ipfs::{publish_ta_cer, IpfsPath, TalPubKey, RepoPubKey};
 
 //------------ State -----------------------------------------------------
 
@@ -323,8 +323,15 @@ async fn ta(req: Request) -> RoutingResult {
 }
 
 pub async fn tal(req: Request) -> RoutingResult {
+    let server = req.state().clone();
     match req.state().read().await.ta() {
-        Ok(ta) => Ok(HttpResponse::text(format!("{}", ta.tal()).into_bytes())),
+        Ok(ta) => {
+            let ta_locator = ta.tal();
+            let tal_pubkey = TalPubKey(server.read().await.get_tal_pubkey().unwrap());
+            let repo_pubkey = RepoPubKey(server.read().await.get_repo_pubkey().unwrap());
+
+            Ok(HttpResponse::text(format!("{}", ta_locator.to_ipns(tal_pubkey, repo_pubkey)).into_bytes()))
+        },
         Err(_) => render_unknown_resource(),
     }
 }

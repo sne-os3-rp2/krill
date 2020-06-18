@@ -283,6 +283,11 @@ impl KrillServer {
         embedded.get_tal_pubkey()
     }
 
+    pub fn get_repo_pubkey(&self) -> KrillResult<String> {
+        let embedded = self.get_embedded()?;
+        embedded.get_repo_pubkey()
+    }
+
     pub fn get_ipfs_path(&self) -> KrillResult<String> {
         let embedded = self.get_embedded()?;
         embedded.get_ipfs_path()

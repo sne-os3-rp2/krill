@@ -28,6 +28,8 @@ use crate::commons::api::{
 use crate::commons::remote::id::IdCert;
 use crate::commons::util::ext_serde;
 use crate::daemon::ca::RouteAuthorization;
+use crate::ipfs::ipfs::{RepoPubKey, TalPubKey, PubKey};
+use rpki::uri::Scheme::Ipns;
 
 //------------ ResourceClassName -------------------------------------------
 
@@ -394,6 +396,48 @@ impl PartialEq for RcvdCert {
 
 impl Eq for RcvdCert {}
 
+//------------ IPNS Trust Anchor Locator -------------------------------------
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct IpnsTrustAnchorLocator {
+    uris: Vec<uri::Ipns>, // We won't create TALs with rsync, this is not for parsing.
+
+    #[serde(
+    deserialize_with = "ext_serde::de_bytes",
+    serialize_with = "ext_serde::ser_bytes"
+    )]
+    encoded_ski: Bytes,
+}
+
+impl IpnsTrustAnchorLocator {
+    pub fn new(uris: Vec<uri::Ipns>, encoded_ski: Bytes) -> Self {
+        IpnsTrustAnchorLocator { uris, encoded_ski }
+    }
+}
+
+impl fmt::Display for IpnsTrustAnchorLocator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let base64 = Base64::from_content(&self.encoded_ski).to_string();
+
+        for uri in self.uris.iter() {
+            writeln!(f, "{}", uri)?;
+        }
+        writeln!(f)?;
+
+        let len = base64.len();
+        let wrap = 64;
+
+        for i in 0..=(len / wrap) {
+            if (i * wrap + wrap) < len {
+                writeln!(f, "{}", &base64[i * wrap..i * wrap + wrap])?;
+            } else {
+                write!(f, "{}", &base64[i * wrap..])?;
+            }
+        }
+
+        Ok(())
+    }
+}
 //------------ TrustAnchorLocator --------------------------------------------
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -415,6 +459,11 @@ impl TrustAnchorLocator {
         }
         let encoded_ski = cert.subject_public_key_info().to_info_bytes();
         TrustAnchorLocator { uris, encoded_ski }
+    }
+
+    pub fn to_ipns(&self, ta_pub: TalPubKey, repo_pub: RepoPubKey) -> IpnsTrustAnchorLocator {
+        let ipns_uri = uri::Ipns::from_string(format!("ipns/{}/{}", ta_pub.key(), repo_pub.key())).unwrap();
+        IpnsTrustAnchorLocator::new(vec![ipns_uri], self.encoded_ski.clone())
     }
 }
 

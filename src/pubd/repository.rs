@@ -680,6 +680,10 @@ impl Repository {
         self.ipfs.tal_pubkey.clone().0
     }
 
+    pub fn repo_pubkey(&self) -> String {
+        self.ipfs.repo_pubkey.clone().0
+    }
+
     pub fn ipfs_path(&self) -> String {
         self.ipfs.ipfs_path.to_string()
     }

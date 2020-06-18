@@ -235,6 +235,10 @@ impl PubServer {
         let repository = self.repository()?;
         Ok(repository.ipfs_path())
     }
+    pub fn get_repo_pubkey(&self) -> KrillResult<String> {
+        let repository = self.repository()?;
+        Ok(repository.repo_pubkey())
+    }
     pub fn repo_info_for(&self, publisher: &PublisherHandle) -> KrillResult<RepoInfo> {
         let repository = self.repository()?;
         Ok(repository.repo_info_for(publisher))
