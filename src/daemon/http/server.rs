@@ -599,9 +599,10 @@ async fn repository_response(
 
 async fn ca_add_child(req: Request, parent: ParentHandle) -> RoutingResult {
     fn do_create_and_publish(cer_in_bytes: &[u8], ipfs_path: &IpfsPath, tal_pubkey: &TalPubKey) {
+        info!("creating /tmp/ta.cer");
         let mut ta_cer_file: File = File::create("/tmp/ta.cer").unwrap();
         ta_cer_file.write_all(cer_in_bytes);
-
+        info!("publishing /tmp/ta.cer to ipfs via ipns");
         publish_ta_cer(ipfs_path, tal_pubkey);
     }
 
@@ -618,13 +619,17 @@ async fn ca_add_child(req: Request, parent: ParentHandle) -> RoutingResult {
                         file.read_to_end(&mut cert_on_file);
 
                         if !cert_on_file.eq(&cert_as_vec) {
+                            info!("/tmp/ta.cer exists but has changed so republishing");
                             let ipfs_path = server.read().await.get_ipfs_path().unwrap();
                             let tal_pubkey = server.read().await.get_tal_pubkey().unwrap();
                             do_create_and_publish(&cert.to_captured().to_vec(),
                                                   &IpfsPath(PathBuf::from(ipfs_path)),
                                                   &TalPubKey(tal_pubkey));
+                        } else {
+                            info!("/tmp/ta.cer already exists and did not change");
                         }
                     } else {
+                        info!("/tmp/ta.cer does not exist. Creating it");
                         let ipfs_path = server.read().await.get_ipfs_path().unwrap();
                         let tal_pubkey = server.read().await.get_tal_pubkey().unwrap();
                         do_create_and_publish(
